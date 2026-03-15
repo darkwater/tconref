@@ -20,10 +20,10 @@ eframe = { version = "0.33.0", default-features = false, features = [
     "wayland",       # To support Linux (and CI)
     "x11",           # To support older Linux distributions (restores one of the default features)
 ] }
-log = "0.4.27"
 
-# You only need serde if you want app persistence:
-serde = { version = "1.0.219", features = ["derive"] }
+egui_table = "0.7.0"
+log        = "0.4.27"
+serde      = { version = "1.0.219", features = ["derive"] }
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -106,11 +106,11 @@ doc_comment_double_space_linebreaks = "warn"
 doc_link_with_quotes = "warn"
 doc_markdown = "warn"
 elidable_lifetime_names = "warn"
-empty_enum = "warn"
+empty_enums = "warn"
 empty_enum_variants_with_brackets = "warn"
 empty_line_after_outer_attr = "warn"
 enum_glob_use = "warn"
-equatable_if_let = "warn"
+equatable_if_let = "allow"
 exit = "warn"
 expl_impl_clone_on_copy = "warn"
 explicit_deref_methods = "warn"
@@ -148,8 +148,8 @@ large_include_file = "warn"
 large_stack_arrays = "warn"
 large_stack_frames = "warn"
 large_types_passed_by_value = "warn"
-let_underscore_must_use = "warn"
-let_underscore_untyped = "warn"
+let_underscore_must_use = "allow"
+let_underscore_untyped = "allow"
 let_unit_value = "warn"
 linkedlist = "warn"
 literal_string_with_formatting_args = "warn"
@@ -220,7 +220,6 @@ string_add = "warn"
 string_add_assign = "warn"
 string_lit_as_bytes = "warn"
 string_lit_chars_any = "warn"
-string_to_string = "warn"
 suspicious_command_arg_space = "warn"
 suspicious_xor_used_as_pow = "warn"
 todo = "warn"
@@ -230,7 +229,7 @@ trailing_empty_array = "warn"
 trait_duplication_in_bounds = "warn"
 transmute_ptr_to_ptr = "warn"
 tuple_array_conversions = "warn"
-unchecked_duration_subtraction = "warn"
+unchecked_time_subtraction = "warn"
 undocumented_unsafe_blocks = "warn"
 unimplemented = "warn"
 uninhabited_references = "warn"

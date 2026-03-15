@@ -1,109 +1,109 @@
-/// We derive Deserialize/Serialize so we can persist app state on shutdown.
-#[derive(serde::Deserialize, serde::Serialize)]
-#[serde(default)] // if we add new fields, give them default values when deserializing old state
+use egui::RichText;
+
+use crate::data::materials::{self, Material};
+
+use self::{
+    assembly::Assembly,
+    table::{MaterialsTable, MaterialsTableSettings},
+};
+
+mod assembly;
+mod table;
+
+#[derive(serde::Deserialize, serde::Serialize, Default)]
+#[serde(default)]
 pub struct TemplateApp {
-    // Example stuff:
-    label: String,
+    #[serde(skip)]
+    rows: Vec<&'static Material>,
+    #[serde(skip)]
+    assembly: Option<Assembly>,
 
-    #[serde(skip)] // This how you opt-out of serialization of a field
-    value: f32,
-}
-
-impl Default for TemplateApp {
-    fn default() -> Self {
-        Self {
-            // Example stuff:
-            label: "Hello World!".to_owned(),
-            value: 2.7,
-        }
-    }
+    materials_table_settings: MaterialsTableSettings,
 }
 
 impl TemplateApp {
-    /// Called once before the first frame.
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        // This is also where you can customize the look and feel of egui using
-        // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
+        cc.egui_ctx.style_mut(|s| {
+            s.interaction.selectable_labels = false;
+            s.interaction.tooltip_delay = 0.1;
+            s.interaction.show_tooltips_only_when_still = false;
+        });
 
-        // Load previous app state (if any).
-        // Note that you must enable the `persistence` feature for this to work.
-        if let Some(storage) = cc.storage {
-            eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default()
-        } else {
-            Default::default()
-        }
+        let mut this: Self = cc
+            .storage
+            .and_then(|storage| eframe::get_value(storage, eframe::APP_KEY))
+            .unwrap_or_default();
+
+        this.rows = Self::rows();
+
+        this
+    }
+
+    fn rows() -> Vec<&'static Material> {
+        let mut rows = Vec::new();
+        rows.extend(materials::tier1::MATERIALS.iter().copied());
+        rows.extend(materials::tier2::MATERIALS.iter().copied());
+        rows.extend(materials::tier3::MATERIALS.iter().copied());
+        rows.extend(materials::tier4::MATERIALS.iter().copied());
+        rows
     }
 }
 
 impl eframe::App for TemplateApp {
-    /// Called by the framework to save state before shutdown.
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         eframe::set_value(storage, eframe::APP_KEY, self);
     }
 
-    /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Put your widgets into a `SidePanel`, `TopBottomPanel`, `CentralPanel`, `Window` or `Area`.
-        // For inspiration and more examples, go to https://emilk.github.io/egui
-
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            // The top panel is often a good place for a menu bar:
-
+        egui::TopBottomPanel::top("menubar").show(ctx, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
-                // NOTE: no File->Quit on web pages!
-                let is_web = cfg!(target_arch = "wasm32");
-                if !is_web {
-                    ui.menu_button("File", |ui| {
-                        if ui.button("Quit").clicked() {
-                            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                        }
-                    });
-                    ui.add_space(16.0);
-                }
+                let _ = ui.selectable_label(true, "Modifiers");
 
-                egui::widgets::global_theme_preference_buttons(ui);
+                ui.menu_button("Assemble", |ui| {
+                    for tool in crate::data::tools::TOOLS {
+                        if ui.button(tool.name).clicked() {
+                            self.assembly = Some(Assembly::new(tool));
+                        }
+                    }
+                });
+
+                ui.label(RichText::new("⚠ Unvalidated ⚠").color(ui.visuals().warn_fg_color))
+                    .on_hover_text(
+                        "Data may very well be inaccurate. Report issues for any mismatches.",
+                    );
+
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.button("Reset").clicked() {
+                        self.materials_table_settings = MaterialsTableSettings::default();
+                    }
+                });
             });
         });
+
+        if let Some(assembly) = &mut self.assembly {
+            egui::SidePanel::right("assembly").show(ctx, |ui| {
+                assembly.ui(ui);
+                ui.take_available_space();
+            });
+        }
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            // The central panel the region left after adding TopPanel's and SidePanel's
-            ui.heading("eframe template");
+            let settings = if let Some(assembly) = &self.assembly {
+                MaterialsTableSettings::general().maybe_combine(
+                    assembly
+                        .next_part_type()
+                        .map(MaterialsTableSettings::for_part_type),
+                )
+            } else {
+                self.materials_table_settings.clone()
+            };
 
-            ui.horizontal(|ui| {
-                ui.label("Write something: ");
-                ui.text_edit_singleline(&mut self.label);
-            });
-
-            ui.add(egui::Slider::new(&mut self.value, 0.0..=10.0).text("value"));
-            if ui.button("Increment").clicked() {
-                self.value += 1.0;
+            MaterialsTable {
+                rows: &self.rows,
+                settings,
+                assembly: self.assembly.as_mut(),
             }
-
-            ui.separator();
-
-            ui.add(egui::github_link_file!(
-                "https://github.com/emilk/eframe_template/blob/main/",
-                "Source code."
-            ));
-
-            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                powered_by_egui_and_eframe(ui);
-                egui::warn_if_debug_build(ui);
-            });
+            .show(ui);
         });
     }
-}
-
-fn powered_by_egui_and_eframe(ui: &mut egui::Ui) {
-    ui.horizontal(|ui| {
-        ui.spacing_mut().item_spacing.x = 0.0;
-        ui.label("Powered by ");
-        ui.hyperlink_to("egui", "https://github.com/emilk/egui");
-        ui.label(" and ");
-        ui.hyperlink_to(
-            "eframe",
-            "https://github.com/emilk/egui/tree/master/crates/eframe",
-        );
-        ui.label(".");
-    });
 }
