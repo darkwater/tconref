@@ -89,11 +89,13 @@ impl eframe::App for TemplateApp {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             let settings = if let Some(assembly) = &self.assembly {
-                MaterialsTableSettings::general().maybe_combine(
-                    assembly
-                        .next_part_type()
-                        .map(MaterialsTableSettings::for_part_type),
-                )
+                MaterialsTableSettings::general()
+                    .maybe_combine(
+                        assembly
+                            .next_part_type()
+                            .map(MaterialsTableSettings::for_part_type),
+                    )
+                    .combine(MaterialsTableSettings::trailing())
             } else {
                 self.materials_table_settings.clone()
             };

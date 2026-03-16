@@ -32,6 +32,12 @@ impl MaterialsTableSettings {
         }
     }
 
+    pub fn trailing() -> Self {
+        Self {
+            columns: vec![Column::TraitExplanation],
+        }
+    }
+
     pub fn for_part_type(part_type: PartType) -> Self {
         let columns = match part_type {
             PartType::Head => {
@@ -77,6 +83,7 @@ impl MaterialsTableSettings {
             .combine(Self::for_part_type(PartType::Handle))
             .combine(Self::for_part_type(PartType::Limb))
             .combine(Self::for_part_type(PartType::Grip))
+            .combine(Self::trailing())
     }
 
     pub fn combine(mut self, other: Self) -> Self {
@@ -102,9 +109,14 @@ impl MaterialsTable<'_> {
                 self.settings
                     .columns
                     .iter()
-                    .map(|col| egui_table::Column::new(col.width()).resizable(false))
+                    .map(|col| {
+                        egui_table::Column::new(col.width())
+                            .id(egui::Id::new(col))
+                            .resizable(false)
+                    })
                     .collect::<Vec<_>>(),
             )
+            .num_sticky_cols(1)
             .headers([
                 HeaderRow {
                     height: 24.0,
@@ -240,6 +252,7 @@ pub enum Column {
     Trait,
     HarvestTier,
     Value(ValueColumn),
+    TraitExplanation,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
@@ -268,6 +281,7 @@ impl Column {
             Self::ModCompat | Self::Overslime => 84.0,
             Self::Trait | Self::HarvestTier => 140.0,
             Self::Value(_) => 96.0,
+            Self::TraitExplanation => 720.0,
         }
     }
 
@@ -299,6 +313,7 @@ impl Column {
                     ValueColumn::GripAttackDamage => "Attack Damage",
                 }
             }
+            Self::TraitExplanation => "Trait Explanation",
         }
     }
 
@@ -362,6 +377,13 @@ impl Column {
             Self::Value(value_column) => {
                 if let Some(value) = value_column.format(material) {
                     ui.label(value);
+                } else {
+                    ui.label("-");
+                }
+            }
+            Self::TraitExplanation => {
+                if let Some(tr) = material.trait_() {
+                    ui.label(tr.explanation);
                 } else {
                     ui.label("-");
                 }
